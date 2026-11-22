@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="pt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Sessão · votações</title>
+<style>
+ body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#1d3542;color:#fff;min-height:100vh;display:flex;flex-direction:column}
+ header{padding:16px 20px;font-weight:700;letter-spacing:.08em;color:#f2d98a;font-size:14px;text-transform:uppercase}
+ main{flex:1;display:flex;flex-direction:column;justify-content:center;padding:20px;gap:18px}
+ .q{background:#fff;color:#1d3542;border-radius:16px;padding:22px;font-size:21px;font-weight:700;line-height:1.3}
+ button{border:0;border-radius:40px;padding:20px;font-size:22px;font-weight:700;color:#fff;background:#2f4e5e;width:100%}
+ button.v{background:#4f6b3a}button.f{background:#8a3b2e}button.on{outline:5px solid #f2d98a}
+ textarea{width:100%;box-sizing:border-box;border-radius:12px;border:0;padding:14px;font-size:18px;min-height:110px}
+ .msg{text-align:center;color:#bcd0d8;font-size:18px;line-height:1.4}
+</style></head>
+<body><header>Sessão · votações</header><main id="m"><p class="msg">À espera da próxima pergunta.<br>Deixe esta página aberta.</p></main>
+<script>
+ // Página estática: fala com a aplicação Apps Script por fetch SEM cookies (credentials:'omit').
+ // Assim não falha em navegadores com várias contas Google (o Google reencaminha para /u/N e dá erro).
+ const API='https://script.google.com/macros/s/AKfycbyKZ2KTvfX_2MKL3wfby3YCaS7l8JLWuR8YjXmGyscxhbrxpMnmGF2vznHXQgjpWZbThg/exec';
+ function pede(p){const q=new URLSearchParams(Object.assign(p,{_:Date.now()}));return fetch(API+'?'+q,{credentials:'omit',cache:'no-store'}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}).then(d=>{if(d&&d.erro)throw new Error(d.erro);return d})}
+
+ const ID=(()=>{try{let x=localStorage.getItem('pid');if(!x){x=Math.random().toString(36).slice(2)+Date.now().toString(36);localStorage.setItem('pid',x)}return x}catch(e){return 'p'+Math.random().toString(36).slice(2)}})();
+ let atual=null,votado=null;const m=document.getElementById('m');
+ function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+ function desenha(a){
+  if(!a||!a.aberta){m.innerHTML='<p class="msg">'+(votado?'Resposta registada.<br>':'')+'À espera da próxima pergunta.<br>Deixe esta página aberta.</p>';return}
+  let h=a.texto?'<div class="q">'+esc(a.texto)+'</div>':'';
+  if(a.tipo==='vf')h+='<button class="v" data-r="V">Verdadeiro</button><button class="f" data-r="F">Falso</button>';
+  else if(a.tipo==='texto')h+='<textarea id="t" placeholder="Escreva aqui"></textarea><button data-t="1">Enviar</button>';
+  else (a.opcoes||[]).forEach(o=>h+='<button data-r="'+esc(o)+'">'+esc(o)+'</button>');
+  m.innerHTML=h;
+  m.querySelectorAll('button').forEach(b=>b.onclick=()=>{const r=b.dataset.t?document.getElementById('t').value.trim():b.dataset.r;if(!r)return;
+   aviso('A enviar…');
+   pede({api:'votar',p:ID,id:a.id,r:r}).then(x=>{if(x&&x.ok){votado=a.id;m.querySelectorAll('button').forEach(y=>y.classList.toggle('on',y===b));if(b.dataset.t)m.innerHTML='<p class="msg">Resposta registada.</p>';else aviso('Resposta registada. Pode mudar até a pergunta fechar.')}else aviso('A pergunta já fechou.')}).catch(()=>aviso('Não ficou registado. Toque outra vez.',1))});
+ }
+ function aviso(t,erro){let p=document.getElementById('av');if(!p){p=document.createElement('p');p.id='av';p.className='msg';m.appendChild(p)}p.textContent=t;p.style.color=erro?'#f2a28a':''}
+ const espera=(a,b)=>a+Math.random()*(b-a); // espalha os pedidos dos telemóveis no tempo
+ function ciclo(){pede({api:'estado'}).then(a=>{const k=a&&a.aberta?a.id:'';if(k!==atual){atual=k;votado=null;desenha(a)}setTimeout(ciclo,espera(4000,6000))}).catch(()=>setTimeout(ciclo,espera(6000,10000)))}
+ ciclo();
+</script></body></html>
