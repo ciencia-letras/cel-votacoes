@@ -15,7 +15,9 @@
  // Página estática: fala com a aplicação Apps Script por fetch SEM cookies (credentials:'omit').
  // Assim não falha em navegadores com várias contas Google (o Google reencaminha para /u/N e dá erro).
  const API='https://script.google.com/macros/s/AKfycbyKZ2KTvfX_2MKL3wfby3YCaS7l8JLWuR8YjXmGyscxhbrxpMnmGF2vznHXQgjpWZbThg/exec';
- function pede(p){const q=new URLSearchParams(Object.assign(p,{_:Date.now()}));return fetch(API+'?'+q,{credentials:'omit',cache:'no-store'}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}).then(d=>{if(d&&d.erro)throw new Error(d.erro);return d})}
+ // A sala vem do endereço: …/cel-votacoes/egas-moniz/m0/t1/ → «egas-moniz/m0/t1» (ou ?sala=…).
+ const SALA=(new URLSearchParams(location.search).get('sala')||location.pathname.replace(/^\/cel-votacoes\/?/,'').replace(/index\.html$/,'')).toLowerCase().replace(/[^a-z0-9/_-]/g,'').replace(/\/+/g,'/').replace(/^\/|\/$/g,'');
+ function pede(p){p.sala=SALA;const q=new URLSearchParams(Object.assign(p,{_:Date.now()}));return fetch(API+'?'+q,{credentials:'omit',cache:'no-store'}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}).then(d=>{if(d&&d.erro)throw new Error(d.erro);return d})}
 
  const ID=(()=>{try{let x=localStorage.getItem('pid');if(!x){x=Math.random().toString(36).slice(2)+Date.now().toString(36);localStorage.setItem('pid',x)}return x}catch(e){return 'p'+Math.random().toString(36).slice(2)}})();
  let atual=null,votado=null;const m=document.getElementById('m');
@@ -34,5 +36,5 @@
  function aviso(t,erro){let p=document.getElementById('av');if(!p){p=document.createElement('p');p.id='av';p.className='msg';m.appendChild(p)}p.textContent=t;p.style.color=erro?'#f2a28a':''}
  const espera=(a,b)=>a+Math.random()*(b-a); // espalha os pedidos dos telemóveis no tempo
  function ciclo(){pede({api:'estado'}).then(a=>{const k=a&&a.aberta?a.id:'';if(k!==atual){atual=k;votado=null;desenha(a)}setTimeout(ciclo,espera(4000,6000))}).catch(()=>setTimeout(ciclo,espera(6000,10000)))}
- ciclo();
+ if(SALA){ciclo()}else{m.innerHTML='<p class="msg">Falta a sala neste endereço.<br>Use o código QR que aparece no ecrã da sua sessão.</p>'}
 </script></body></html>
